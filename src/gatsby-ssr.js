@@ -1,19 +1,15 @@
 const React = require("react");
 const flatten = require("lodash.flatten");
 
-const {
-  computeHash,
-  cspString,
-  getHashes,
-  defaultDirectives
-} = require("./utils");
+const { cspString, getHashes, saveCsp, defaultDirectives } = require("./utils");
 
 exports.onPreRenderHTML = (
   {
+    pathname,
     getHeadComponents,
     replaceHeadComponents,
     getPreBodyComponents,
-    getPostBodyComponents
+    getPostBodyComponents,
   },
   userPluginOptions
 ) => {
@@ -23,7 +19,9 @@ exports.onPreRenderHTML = (
     mergeScriptHashes = true,
     mergeStyleHashes = true,
     mergeDefaultDirectives = true,
-    directives: userDirectives
+    directives: userDirectives,
+    useMetaTag = true,
+    cspFileName = ".cache/csp.json",
   } = userPluginOptions;
 
   // early return if plugin is disabled on dev env
@@ -34,12 +32,12 @@ exports.onPreRenderHTML = (
   let components = [
     ...flatten(getHeadComponents()),
     ...flatten(getPostBodyComponents()),
-    ...flatten(getPreBodyComponents())
+    ...flatten(getPreBodyComponents()),
   ];
 
   let directives = {
     ...(mergeDefaultDirectives && defaultDirectives),
-    ...userDirectives
+    ...userDirectives,
   };
 
   let csp = {
@@ -48,22 +46,36 @@ exports.onPreRenderHTML = (
       "script-src": `${directives["script-src"] || ""} ${getHashes(
         components,
         "script"
-      )}`
+      )}`,
     }),
     ...(mergeStyleHashes && {
       "style-src": `${directives["style-src"] || ""} ${getHashes(
         components,
         "style"
-      )}`
-    })
+      )}`,
+    }),
   };
 
-  const cspComponent = React.createElement("meta", {
-    httpEquiv: `${reportOnly ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy"}`,
-    content: cspString(csp)
+  const headerName = reportOnly
+    ? "Content-Security-Policy-Report-Only"
+    : "Content-Security-Policy";
+
+  const path = pathname.endsWith("/")
+    ? `${pathname.substr(1)}index.html`
+    : pathname.substr(1);
+
+  saveCsp(cspFileName, path, {
+    [headerName]: cspString(csp),
   });
 
-  let headComponentsWithCsp = [cspComponent, ...getHeadComponents()];
+  if (useMetaTag) {
+    const cspComponent = React.createElement("meta", {
+      httpEquiv: headerName,
+      content: cspString(csp),
+    });
 
-  replaceHeadComponents(headComponentsWithCsp);
+    let headComponentsWithCsp = [cspComponent, ...getHeadComponents()];
+
+    replaceHeadComponents(headComponentsWithCsp);
+  }
 };

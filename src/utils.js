@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const fs = require("fs");
 
 const defaultDirectives = {
   "base-uri": "'self'",
@@ -9,16 +10,13 @@ const defaultDirectives = {
   "form-action": "'self'",
   "font-src": "'self' data:",
   "connect-src": "'self'",
-  "img-src": "'self' data:"
+  "img-src": "'self' data:",
 };
 
 function computeHash(component) {
   let { __html: stringHtml } = component.props.dangerouslySetInnerHTML;
 
-  let hash = crypto
-    .createHash("sha256")
-    .update(stringHtml)
-    .digest("base64");
+  let hash = crypto.createHash("sha256").update(stringHtml).digest("base64");
 
   return "'sha256-" + hash + "'";
 }
@@ -36,21 +34,38 @@ function cspString(csp) {
 }
 
 function getHashes(components, type) {
-  let isType = element => element.type === type;
-  let isInline = element =>
+  let isType = (element) => element.type === type;
+  let isInline = (element) =>
     element.props.dangerouslySetInnerHTML &&
     element.props.dangerouslySetInnerHTML.__html.length > 0;
 
-  return components
-    .filter(isType)
-    .filter(isInline)
-    .map(computeHash)
-    .join(" ");
+  return components.filter(isType).filter(isInline).map(computeHash).join(" ");
+}
+
+function saveCsp(file, key, value) {
+  const struct = getCsp();
+  struct[key] = value;
+
+  fs.writeFileSync(file, JSON.stringify(struct));
+}
+
+function getCsp(file) {
+  try {
+    if (fs.existsSync(file)) {
+      return JSON.parse(fs.readFileSync(file) || "{}");
+    }
+
+    return {};
+  } catch (e) {
+    return {};
+  }
 }
 
 module.exports = {
   computeHash,
   cspString,
   getHashes,
-  defaultDirectives
+  saveCsp,
+  getCsp,
+  defaultDirectives,
 };

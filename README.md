@@ -53,6 +53,7 @@ module.exports = {
         mergeScriptHashes: true, // you can disable scripts sha256 hashes
         mergeStyleHashes: true, // you can disable styles sha256 hashes
         mergeDefaultDirectives: true,
+        useMetaTag: true, // Write to HTML meta tag or write to a file in .cache
         directives: {
           "script-src": "'self' www.google-analytics.com",
           "style-src": "'self' 'unsafe-inline'",
